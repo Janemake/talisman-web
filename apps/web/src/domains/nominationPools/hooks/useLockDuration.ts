@@ -1,18 +1,18 @@
-import { apiState } from '@domains/chains/recoils'
-import { useChainState } from '@domains/common/hooks'
-import { useMemo } from 'react'
-import { useRecoilValue } from 'recoil'
+import { expectedBlockTime, useSubstrateApiState } from '@domains/common'
+import { useDeriveState } from '@talismn/react-polkadot-api'
+import { formatDistance } from 'date-fns'
+import { useRecoilValue, waitForAll } from 'recoil'
 
-export const useLockDuration = () => {
-  const api = useRecoilValue(apiState)
-  const expectedEraTimeLoadable = useChainState('derive', 'session', 'eraLength', [])
-
-  return useMemo(
-    () =>
-      expectedEraTimeLoadable
-        .valueMaybe()
-        ?.mul(api.consts.staking.bondingDuration)
-        .mul(api.consts.babe.expectedBlockTime),
-    [api.consts.babe.expectedBlockTime, api.consts.staking.bondingDuration, expectedEraTimeLoadable]
+export const useLocalizedLockDuration = () => {
+  const [api, sessionProgress] = useRecoilValue(
+    waitForAll([useSubstrateApiState(), useDeriveState('session', 'progress', [])])
   )
+
+  if (!sessionProgress.isEpoch) {
+    return `${sessionProgress.eraLength.mul(api.consts.staking.bondingDuration).toString()} sessions`
+  }
+
+  const ms = sessionProgress.eraLength.mul(api.consts.staking.bondingDuration).mul(expectedBlockTime(api))
+
+  return formatDistance(0, ms.toNumber())
 }

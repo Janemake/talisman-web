@@ -1,4 +1,4 @@
-import { useExtrinsic, useQueryMulti, useTokenAmountFromAtomics, useTokenAmountState } from '@domains/common/hooks'
+import { useExtrinsic, useQueryMulti, useTokenAmountFromPlanck, useTokenAmountState } from '@domains/common/hooks'
 import useExtrinsicBatch from '@domains/common/hooks/useExtrinsicBatch'
 import { BN } from '@polkadot/util'
 import { useMemo } from 'react'
@@ -13,34 +13,53 @@ export const useValidatorUnstakeForm = (account?: string) => {
 
   const [input, setAmount] = useTokenAmountState('')
 
-  const minNeededForMembership = useTokenAmountFromAtomics(queriesLoadable.contents[0])
+  const minNeededForMembership = useTokenAmountFromPlanck(queriesLoadable.valueMaybe()?.[0])
 
-  const available = useTokenAmountFromAtomics(queriesLoadable.valueMaybe()?.[1]?.unwrapOrDefault().active.unwrap())
+  const available = useTokenAmountFromPlanck(queriesLoadable.valueMaybe()?.[1]?.unwrapOrDefault().active.unwrap())
 
-  const resulting = useTokenAmountFromAtomics(
+  const resulting = useTokenAmountFromPlanck(
     useMemo(
-      () => available.decimalAmount?.atomics.sub(input.decimalAmount?.atomics ?? new BN(0)),
-      [available.decimalAmount?.atomics, input.decimalAmount?.atomics]
+      () => available.decimalAmount?.planck.sub(input.decimalAmount?.planck ?? new BN(0)),
+      [available.decimalAmount?.planck, input.decimalAmount?.planck]
     )
+  )
+
+  const isLeaving = useMemo(
+    () =>
+      input.decimalAmount !== undefined &&
+      available.decimalAmount !== undefined &&
+      input.decimalAmount.toString() === input.amount &&
+      input.decimalAmount.toString() === available.decimalAmount.toString(),
+    [available.decimalAmount, input.amount, input.decimalAmount]
   )
 
   const error = useMemo(() => {
     if (queriesLoadable.state !== 'hasValue') return
 
-    if (available.decimalAmount !== undefined && input.decimalAmount?.atomics.gt(available.decimalAmount.atomics)) {
-      return new Error('Insufficient balance')
+    if (!isLeaving) {
+      if (available.decimalAmount !== undefined && input.decimalAmount?.planck.gt(available.decimalAmount.planck)) {
+        return new Error('Insufficient balance')
+      }
+
+      if (
+        available.decimalAmount !== undefined &&
+        input.decimalAmount !== undefined &&
+        !input.decimalAmount.planck.eq(available.decimalAmount.planck) &&
+        minNeededForMembership.decimalAmount !== undefined &&
+        available.decimalAmount.planck.sub(input.decimalAmount.planck).lt(minNeededForMembership.decimalAmount.planck)
+      ) {
+        return new Error(`Need ${minNeededForMembership.decimalAmount?.toHuman()} to stay active`)
+      }
     }
 
-    if (
-      available.decimalAmount !== undefined &&
-      input.decimalAmount !== undefined &&
-      !input.decimalAmount.atomics.eq(available.decimalAmount.atomics) &&
-      minNeededForMembership.decimalAmount !== undefined &&
-      available.decimalAmount.atomics.sub(input.decimalAmount.atomics).lt(minNeededForMembership.decimalAmount.atomics)
-    ) {
-      return new Error(`Need ${minNeededForMembership.decimalAmount?.toHuman()} to stay active`)
-    }
-  }, [queriesLoadable.state, available.decimalAmount, input.decimalAmount, minNeededForMembership.decimalAmount])
+    return undefined
+  }, [
+    queriesLoadable.state,
+    isLeaving,
+    available.decimalAmount,
+    input.decimalAmount,
+    minNeededForMembership.decimalAmount,
+  ])
 
   return {
     extrinsic: {
@@ -48,15 +67,16 @@ export const useValidatorUnstakeForm = (account?: string) => {
       // TODO: clean up this dirty hack
       // maybe create a hook or function to combine status of multiple distinct extrinsic
       state: unbondExtrinsic.state === 'loading' || unbondAllExtrinsic.state === 'loading' ? 'loading' : 'idle',
-      unbondAll: (account: string) => {
+      unbondAll: async (account: string) => {
         const stake = queriesLoadable.valueMaybe()?.[1]
 
         if (stake === undefined) {
           throw new Error('Extrinsic not ready yet')
         }
 
-        return unbondAllExtrinsic.signAndSend(account, [
+        return await unbondAllExtrinsic.signAndSend(account, [
           [],
+          // Internal @polkadot type error
           [queriesLoadable.valueMaybe()?.[1].unwrapOrDefault().active ?? 0],
         ])
       },
@@ -66,6 +86,7 @@ export const useValidatorUnstakeForm = (account?: string) => {
     resulting,
     setAmount,
     error,
+    isLeaving,
     isReady: queriesLoadable.state === 'hasValue',
   }
 }

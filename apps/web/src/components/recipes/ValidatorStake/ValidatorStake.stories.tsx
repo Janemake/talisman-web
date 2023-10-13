@@ -1,6 +1,6 @@
-import { ComponentMeta, Story } from '@storybook/react'
+import { type ComponentMeta, type Story } from '@storybook/react'
 
-import ValidatorStake, { ValidatorStakeList, ValidatorStakeProps } from './ValidatorStake'
+import ValidatorStake, { ValidatorStakeList, type ValidatorStakeProps } from './ValidatorStake'
 import ValidatorStakeSkeleton from './ValidatorStake.skeleton'
 
 export default {
@@ -11,8 +11,7 @@ export default {
 export const Default: Story<ValidatorStakeProps> = args => <ValidatorStake {...args} />
 
 Default.args = {
-  accountName: 'Yeet account',
-  accountAddress: '143wN4e1nTTWJZHy1CFVXDHpAg6YJsNn2jDN52J2Xfjf8MWs',
+  account: { name: 'Yeet account', address: '143wN4e1nTTWJZHy1CFVXDHpAg6YJsNn2jDN52J2Xfjf8MWs' },
   stakingAmount: '4000 DOT',
   stakingAmountInFiat: '$23,988.55',
 }
@@ -33,8 +32,7 @@ export const List: Story<ValidatorStakeProps> = args => (
 )
 
 List.args = {
-  accountName: 'Yeet account',
-  accountAddress: '143wN4e1nTTWJZHy1CFVXDHpAg6YJsNn2jDN52J2Xfjf8MWs',
+  account: { name: 'Yeet account', address: '143wN4e1nTTWJZHy1CFVXDHpAg6YJsNn2jDN52J2Xfjf8MWs' },
   stakingAmount: '4000 DOT',
   stakingAmountInFiat: '$23,988.55',
 }

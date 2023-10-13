@@ -1,29 +1,23 @@
 import '@polkadot/api-augment/polkadot'
 import '@polkadot/api-augment/substrate'
 
-import CookieBanner from '@archetypes/CookieBanner'
-import DevMenu from '@archetypes/DevMenu'
-import ToastBar from '@components/molecules/ToastBar'
+import FairyBreadBanner from '@archetypes/FairyBreadBanner'
 import { TalismanHandLoader } from '@components/TalismanHandLoader'
-import { AccountsWatcher } from '@domains/accounts/recoils'
-import * as MoonbeamContributors from '@libs/moonbeam-contributors'
+import ErrorBoundary from '@components/widgets/ErrorBoundary'
+import Development from '@components/widgets/development'
+import { LegacyBalancesWatcher } from '@domains/balances'
+import { ExtensionWatcher } from '@domains/extension/recoils'
 import * as Portfolio from '@libs/portfolio'
 import TalismanProvider from '@libs/talisman'
-import * as Tokenprices from '@libs/tokenprices'
 import router from '@routes'
-import posthog from 'posthog-js'
-import React, { Suspense } from 'react'
-import { Toaster } from 'react-hot-toast'
+import { Suspense } from 'react'
 import { RouterProvider } from 'react-router-dom'
 import { RecoilRoot } from 'recoil'
 
 import ThemeProvider from './App.Theme'
-
-if (process.env.REACT_APP_POSTHOG_AUTH_TOKEN) {
-  posthog.init(process.env.REACT_APP_POSTHOG_AUTH_TOKEN)
-  // eslint-disable-next-line
-  posthog.debug(process.env.NODE_ENV === 'development')
-}
+import { PolkadotApiProvider } from '@talismn/react-polkadot-api'
+import { chainDeriveState, chainQueryMultiState, chainQueryState } from '@domains/common/recoils/query'
+import { TalismanExtensionSynchronizer } from '@domains/extension'
 
 const Loader = () => {
   return (
@@ -43,28 +37,37 @@ const Loader = () => {
   )
 }
 
-const App: React.FC = () => (
-  <RecoilRoot>
-    <Portfolio.Provider>
-      <Tokenprices.Provider>
-        <TalismanProvider>
-          <AccountsWatcher />
-          <MoonbeamContributors.Provider>
-            <ThemeProvider>
-              <DevMenu />
-              <Suspense fallback={<Loader />}>
+const App = () => (
+  <ThemeProvider>
+    <RecoilRoot>
+      <ErrorBoundary
+        renderFallback={fallback => (
+          <div css={{ height: '100dvh', display: 'flex' }}>
+            <div css={{ margin: 'auto' }}>{fallback}</div>
+          </div>
+        )}
+      >
+        <Suspense fallback={<Loader />}>
+          <PolkadotApiProvider
+            queryState={chainQueryState}
+            deriveState={chainDeriveState}
+            queryMultiState={chainQueryMultiState}
+          >
+            <Portfolio.Provider>
+              <TalismanProvider>
+                <ExtensionWatcher />
+                <TalismanExtensionSynchronizer />
+                <LegacyBalancesWatcher />
+                <Development />
                 <RouterProvider router={router} />
-                <Toaster position="top-right" containerStyle={{ top: '6.4rem' }}>
-                  {t => <ToastBar toast={t} />}
-                </Toaster>
-                <CookieBanner />
-              </Suspense>
-            </ThemeProvider>
-          </MoonbeamContributors.Provider>
-        </TalismanProvider>
-      </Tokenprices.Provider>
-    </Portfolio.Provider>
-  </RecoilRoot>
+                <FairyBreadBanner />
+              </TalismanProvider>
+            </Portfolio.Provider>
+          </PolkadotApiProvider>
+        </Suspense>
+      </ErrorBoundary>
+    </RecoilRoot>
+  </ThemeProvider>
 )
 
 export default App

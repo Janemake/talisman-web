@@ -1,4 +1,6 @@
 export * from './useChainState'
+export * from './useEraEta'
 export * from './useExtrinsic'
 export * from './useQueryMulti'
+export * from './useSubstrateApiEndpoint'
 export * from './useTokenAmount'

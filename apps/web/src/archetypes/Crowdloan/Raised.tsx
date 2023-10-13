@@ -1,7 +1,7 @@
 import { Pendor, ProgressBar, Stat } from '@components'
-import { CheckCircle } from '@components/atoms/Icon'
 import styled from '@emotion/styled'
 import { useCrowdloanById } from '@libs/talisman'
+import { CheckCircle } from '@talismn/icons'
 import { shortNumber } from '@util/helpers'
 import { useTranslation } from 'react-i18next'
 
@@ -23,7 +23,7 @@ const Raised = styled(
     const suffix = (id || '').startsWith('0-') ? ' DOT' : ' KSM'
 
     return (
-      <div className={`crowdloan-raised ${className}`} data-status={uiStatus?.toLowerCase()}>
+      <div className={`crowdloan-raised ${className ?? ''}`} data-status={uiStatus?.toLowerCase()}>
         <div className="top">
           <span>{uiStatus === 'capped' ? `${t('Goal reached')} ✓` : title}</span>
           <span>

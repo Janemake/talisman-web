@@ -1,18 +1,18 @@
-import { ApiPromise } from '@polkadot/api'
+import { type ApiPromise } from '@polkadot/api'
 import type {
   GenericStorageEntryFunction,
   PromiseResult,
   QueryableStorageEntry,
   StorageEntryPromiseOverloads,
-  UnsubscribePromise,
 } from '@polkadot/api/types'
-import useDeferred from '@util/useDeferred'
-import { useEffect, useRef, useState } from 'react'
-import { Loadable, RecoilLoadable, useRecoilValue } from 'recoil'
-import { Observable } from 'rxjs'
+import { RecoilLoadable, constSelector, useRecoilValueLoadable, type Loadable } from 'recoil'
+import { type Observable } from 'rxjs'
+import { useSubstrateApiEndpoint } from '.'
+import { chainQueryState } from '../recoils/query'
 
-import { apiState } from '../../chains/recoils'
-
+/**
+ * @deprecated use `useQueryState` or `useDeriveState` instead
+ */
 export const useChainState = <
   TType extends keyof Pick<ApiPromise, 'query' | 'derive'>,
   TModule extends keyof PickKnownKeys<ApiPromise[TType]>,
@@ -20,24 +20,23 @@ export const useChainState = <
   TAugmentedSection extends TType extends 'query' ? TSection | `${TSection}.multi` : TSection,
   TExtractedSection extends TAugmentedSection extends `${infer Section}.multi` ? Section : TAugmentedSection,
   TMethod extends Diverge<
-    // @ts-ignore
+    // @ts-expect-error
     ApiPromise[TType][TModule][TExtractedSection],
     StorageEntryPromiseOverloads & QueryableStorageEntry<any, any> & PromiseResult<GenericStorageEntryFunction>
   >
 >(
   typeName: TType,
   moduleName: TModule,
-  // @ts-ignore
+
   sectionName: TAugmentedSection,
   params: TMethod extends (...args: any) => any
-    ? // @ts-ignore
-      TAugmentedSection extends TSection
+    ? TAugmentedSection extends TSection
       ? Leading<Parameters<TMethod>>
       : Leading<Parameters<TMethod>> extends [infer Head]
       ? Head[]
       : Array<Readonly<Leading<Parameters<TMethod>>>>
     : never,
-  options: { enabled?: boolean; keepPreviousData?: boolean } = { enabled: true, keepPreviousData: false }
+  options: { enabled?: boolean } = { enabled: true }
 ) => {
   type TResult = TMethod extends PromiseResult<(...args: any) => Observable<infer Result>>
     ? TAugmentedSection extends TSection
@@ -45,69 +44,21 @@ export const useChainState = <
       : Result[]
     : never
 
-  const api = useRecoilValue(apiState)
+  const endpoint = useSubstrateApiEndpoint()
 
-  const { promise, resolve, reject } = useDeferred<TResult>(
-    options.keepPreviousData ? undefined : [typeName, moduleName, sectionName, JSON.stringify(params)]
+  const loadable = useRecoilValueLoadable<TResult>(
+    typeName === 'query'
+      ? !options.enabled
+        ? (constSelector(undefined) as any)
+        : // @ts-expect-error
+          chainQueryState(endpoint, moduleName, sectionName, params)
+      : !options.enabled
+      ? (constSelector(undefined) as any)
+      : // @ts-expect-error
+        chainDeriveState(endpoint, moduleName, sectionName, params)
   )
 
-  // Reference to be compared, to prevent old promise from resolving after new one
-  const promiseRef = useRef(promise)
-  useEffect(() => {
-    promiseRef.current = promise
-  }, [promise])
-
-  const [loadable, setLoadable] = useState<Loadable<TResult>>(RecoilLoadable.of(promise))
-
-  useEffect(() => {
-    setLoadable(RecoilLoadable.of(promise))
-  }, [promise])
-
-  useEffect(
-    () => {
-      if (options?.enabled === false) {
-        setLoadable(RecoilLoadable.of(promise))
-        return
-      }
-
-      const [section, multi] = (sectionName as string).split('.')
-
-      const func =
-        // @ts-ignore
-        multi === undefined ? api[typeName][moduleName][section] : api[typeName][moduleName][section][multi]
-
-      const parsedParams = multi === undefined ? params : [params]
-
-      // @ts-ignore
-      const unsubscribePromise: UnsubscribePromise = func(...parsedParams, result => {
-        if (promise !== promiseRef.current) {
-          return
-        }
-
-        setLoadable(RecoilLoadable.of(result))
-        resolve(result)
-      }).catch((error: any) => {
-        if (promise !== promiseRef.current) {
-          return
-        }
-
-        setLoadable(RecoilLoadable.error(error))
-        reject(error)
-      })
-
-      return () => {
-        unsubscribePromise.then(unsubscribe => {
-          if (typeof unsubscribe === 'function') {
-            unsubscribe()
-          }
-        })
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [api, typeName, moduleName, sectionName, options?.enabled, JSON.stringify(params)]
-  )
-
-  return loadable
+  return !options.enabled ? (RecoilLoadable.loading() as Loadable<TResult>) : loadable
 }
 
 export default useChainState

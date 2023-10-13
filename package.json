@@ -2,34 +2,72 @@
   "private": true,
   "name": "talisman-web",
   "license": "GPL-3.0-or-later",
-  "packageManager": "yarn@3.2.4",
+  "packageManager": "yarn@3.4.1",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
     "postinstall": "husky install",
-    "start": "yarn workspaces foreach run start",
-    "build": "yarn workspaces foreach run build",
-    "test": "yarn workspaces foreach run test --watchAll=false",
-    "lint": "yarn workspaces foreach run lint",
-    "checkTypes": "yarn workspaces foreach run checkTypes",
-    "e2e": "yarn workspaces foreach run e2e"
+    "dev": "yarn turbo run dev",
+    "build": "yarn turbo run build",
+    "test": "yarn turbo run test",
+    "lint": "yarn turbo run lint",
+    "check-types": "yarn turbo run check-types",
+    "e2e": "yarn turbo run e2e",
+    "storybook": "yarn turbo run storybook",
+    "build-storybook": "yarn turbo run storybook"
+  },
+  "dependencies": {
+    "react-object-view": "^0.3.4"
   },
   "devDependencies": {
-    "@commitlint/cli": "^17.2.0",
-    "@commitlint/config-conventional": "^17.2.0",
-    "eslint": "^8.27.0",
-    "husky": "^8.0.0",
-    "import-sort-style-module": "^6.0.0",
-    "prettier": "^2.7.1",
-    "prettier-plugin-import-sort": "^0.0.7",
-    "pretty-quick": "^3.1.3"
+    "@commitlint/cli": "^17.4.2",
+    "@commitlint/config-conventional": "^17.4.2",
+    "eslint": "^8.33.0",
+    "husky": "^8.0.3",
+    "prettier": "^2.8.6",
+    "pretty-quick": "^3.1.3",
+    "turbo": "^1.8.2"
   },
-  "importSort": {
-    ".js, .jsx, .ts, .tsx": {
-      "style": "module",
-      "parser": "typescript"
-    }
+  "resolutions": {
+    "@polkadot/api": "10.9.1",
+    "@polkadot/api-augment": "10.9.1",
+    "@polkadot/api-base": "10.9.1",
+    "@polkadot/api-contract": "10.9.1",
+    "@polkadot/api-derive": "10.9.1",
+    "@polkadot/apps-config": "0.132.1",
+    "@polkadot/extension-dapp": "0.46.5",
+    "@polkadot/extension-inject": "0.46.5",
+    "@polkadot/keyring": "12.3.2",
+    "@polkadot/networks": "12.3.2",
+    "@polkadot/rpc-augment": "10.9.1",
+    "@polkadot/rpc-core": "10.9.1",
+    "@polkadot/rpc-provider": "10.9.1",
+    "@polkadot/typegen": "10.9.1",
+    "@polkadot/types": "10.9.1",
+    "@polkadot/types-augment": "10.9.1",
+    "@polkadot/types-codec": "10.9.1",
+    "@polkadot/types-create": "10.9.1",
+    "@polkadot/types-known": "10.9.1",
+    "@polkadot/types-support": "10.9.1",
+    "@polkadot/util": "12.3.2",
+    "@polkadot/util-crypto": "12.3.2",
+    "@polkadot/wasm-bridge": "7.2.1",
+    "@polkadot/wasm-crypto": "7.2.1",
+    "@polkadot/wasm-crypto-asmjs": "7.2.1",
+    "@polkadot/wasm-crypto-init": "7.2.1",
+    "@polkadot/wasm-crypto-wasm": "7.2.1",
+    "@polkadot/wasm-util": "7.2.1",
+    "@polkadot/x-bigint": "12.3.2",
+    "@polkadot/x-fetch": "12.3.2",
+    "@polkadot/x-global": "12.3.2",
+    "@polkadot/x-randomvalues": "12.3.2",
+    "@polkadot/x-textdecoder": "12.3.2",
+    "@polkadot/x-textencoder": "12.3.2",
+    "@polkadot/x-ws": "12.3.2",
+    "json-stream-stringify": "2.0.4",
+    "recoil@^0.7.7": "patch:recoil@npm%3A0.7.7#./.yarn/patches/recoil-npm-0.7.7-4452f58b67.patch",
+    "threads@^1.7.0": "patch:threads@npm%3A1.7.0#./.yarn/patches/threads-npm-1.7.0-c432dbb3e9.patch"
   }
 }

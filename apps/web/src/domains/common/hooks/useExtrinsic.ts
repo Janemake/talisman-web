@@ -1,49 +1,89 @@
-import { ApiPromise } from '@polkadot/api'
-import { AddressOrPair } from '@polkadot/api/types'
-import { ISubmittableResult } from '@polkadot/types/types'
-import { useCallback, useState } from 'react'
-import { useRecoilCallback, useRecoilValueLoadable } from 'recoil'
+import { type ApiPromise } from '@polkadot/api'
+import { type AddressOrPair, type SubmittableExtrinsic } from '@polkadot/api/types'
+import { web3FromAddress } from '@polkadot/extension-dapp'
+import { type ISubmittableResult } from '@polkadot/types/types'
+import { useContext, useMemo, useState } from 'react'
+import { useRecoilCallback } from 'recoil'
 
-import { apiState, chainState } from '../../chains/recoils'
-import { extensionState } from '../../extension/recoils'
-import { extrinsicMiddleWare } from '../extrinsicMiddleware'
+import { ChainContext } from '@domains/chains'
+import { substrateApiState, useSubstrateApiEndpoint } from '..'
+import { skipErrorReporting } from '../consts'
+import { extrinsicMiddleware } from '../extrinsicMiddleware'
 import { toastExtrinsic } from '../utils'
 
-export const useExtrinsic = <
+export type SubmittableResultLoadable =
+  | { state: 'idle'; contents: undefined }
+  | { state: 'loading'; contents: ISubmittableResult | undefined }
+  | { state: 'hasValue'; contents: ISubmittableResult }
+  | { state: 'hasError'; contents: any }
+
+export type ExtrinsicLoadable = (
+  | { state: 'idle'; contents: undefined }
+  | { state: 'loading'; contents: ISubmittableResult | undefined }
+  | { state: 'hasValue'; contents: ISubmittableResult }
+  | { state: 'hasError'; contents: any }
+) & {
+  signAndSend: (account: AddressOrPair) => Promise<ISubmittableResult>
+}
+
+export const useSubmittableResultLoadableState = () =>
+  useState<SubmittableResultLoadable>({ state: 'idle', contents: undefined })
+
+export function useExtrinsic<T extends SubmittableExtrinsic<'promise', ISubmittableResult> | undefined>(
+  submittable: T
+): T extends undefined ? ExtrinsicLoadable | undefined : ExtrinsicLoadable
+export function useExtrinsic<
   TModule extends keyof PickKnownKeys<ApiPromise['tx']>,
   TSection extends keyof PickKnownKeys<ApiPromise['tx'][TModule]>
 >(
   module: TModule,
   section: TSection
-) => {
-  type TExtrinsic = ApiPromise['tx'][TModule][TSection]
+): ExtrinsicLoadable & {
+  signAndSend: (
+    account: AddressOrPair,
+    ...params: Parameters<ApiPromise['tx'][TModule][TSection]>
+  ) => Promise<ISubmittableResult>
+}
+export function useExtrinsic<
+  TModule extends keyof PickKnownKeys<ApiPromise['tx']>,
+  TSection extends keyof PickKnownKeys<ApiPromise['tx'][TModule]>
+>(module: TModule, section: TSection, params: Parameters<ApiPromise['tx'][TModule][TSection]>): ExtrinsicLoadable
+export function useExtrinsic(
+  moduleOrSubmittable: string | SubmittableExtrinsic<'promise', ISubmittableResult> | undefined,
+  section?: string,
+  params: unknown[] = []
+): ExtrinsicLoadable | undefined {
+  const chain = useContext(ChainContext)
+  const endpoint = useSubstrateApiEndpoint()
 
-  const chainLoadable = useRecoilValueLoadable(chainState)
-
-  const [loadable, setLoadable] = useState<
-    | { state: 'idle'; contents: undefined }
-    | { state: 'loading'; contents: ISubmittableResult | undefined }
-    | { state: 'hasValue'; contents: ISubmittableResult }
-    | { state: 'hasError'; contents: any }
-  >({ state: 'idle', contents: undefined })
-
-  const [parameters, setParameters] = useState<[AddressOrPair, ...Parameters<TExtrinsic>]>()
-
-  const reset = useCallback(() => setLoadable({ state: 'idle', contents: undefined }), [])
+  const [loadable, setLoadable] = useSubmittableResultLoadableState()
 
   const signAndSend = useRecoilCallback(
     callbackInterface =>
-      async (account: AddressOrPair, ...params: Parameters<TExtrinsic>) => {
-        const { snapshot } = callbackInterface
+      async (account: AddressOrPair, ...innerParams: unknown[]) => {
+        const submittable = await (async () => {
+          if (typeof moduleOrSubmittable === 'string') {
+            const api = await callbackInterface.snapshot.getPromise(substrateApiState(endpoint))
+            const submittable = api.tx[moduleOrSubmittable]?.[section ?? '']?.(
+              ...(innerParams.length > 0 ? innerParams : params)
+            )
 
-        setParameters([account, ...params])
+            if (submittable === undefined) {
+              throw new Error(`Unable to construct extrinsic ${moduleOrSubmittable}:${section ?? ''}`)
+            }
+
+            return submittable
+          } else {
+            return moduleOrSubmittable
+          }
+        })()
 
         const promiseFunc = async () => {
-          const api = await snapshot.getPromise(apiState)
-          const extension = await snapshot.getPromise(extensionState)
+          // eslint-disable-next-line @typescript-eslint/no-base-to-string
+          const web3 = await web3FromAddress(account.toString())
 
-          let resolve = (value: ISubmittableResult) => {}
-          let reject = (value: unknown) => {}
+          let resolve = (_value: ISubmittableResult) => {}
+          let reject = (_value: unknown) => {}
 
           const deferred = new Promise<ISubmittableResult>((_resolve, _reject) => {
             resolve = _resolve
@@ -51,33 +91,29 @@ export const useExtrinsic = <
           })
 
           try {
-            const unsubscribe = await api.tx[module]?.[section]?.(...params).signAndSend(
-              account,
-              { signer: extension?.signer },
-              result => {
-                extrinsicMiddleWare(module, section as any, result, callbackInterface)
+            const unsubscribe = await submittable?.signAndSend(account, { signer: web3?.signer }, result => {
+              extrinsicMiddleware(chain.id, submittable, result, callbackInterface)
 
-                if (result.isError) {
-                  unsubscribe?.()
+              if (result.isError) {
+                unsubscribe?.()
+                reject(result)
+              } else if (result.isFinalized) {
+                unsubscribe?.()
+
+                if (result.dispatchError !== undefined) {
                   reject(result)
-                } else if (result.isFinalized) {
-                  unsubscribe?.()
-
-                  if (result.dispatchError !== undefined) {
-                    reject(result)
-                  } else {
-                    resolve(result)
-                  }
                 } else {
-                  setLoadable({ state: 'loading', contents: result })
+                  resolve(result)
                 }
+              } else {
+                setLoadable({ state: 'loading', contents: result })
               }
-            )
+            })
           } catch (error) {
             reject(error)
           }
 
-          return deferred
+          return await deferred
         }
 
         const promise = promiseFunc()
@@ -87,7 +123,9 @@ export const useExtrinsic = <
           contents: loadable.state === 'loading' ? loadable.contents : undefined,
         }))
 
-        toastExtrinsic([[module, String(section)]], promise, chainLoadable)
+        if (submittable !== undefined) {
+          toastExtrinsic([[submittable.method.section, submittable.method.method]], promise, chain.subscanUrl)
+        }
 
         try {
           const result = await promise
@@ -95,12 +133,22 @@ export const useExtrinsic = <
           return result
         } catch (error) {
           setLoadable({ state: 'hasError', contents: error })
+
+          if (error instanceof Error && error.message === 'Cancelled') {
+            throw Object.assign(error, { [skipErrorReporting]: true })
+          } else {
+            throw error
+          }
         }
       },
-    [chainLoadable, module, section]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [chain.id, chain.subscanUrl, endpoint, moduleOrSubmittable, JSON.stringify(params), section, setLoadable]
   )
 
-  return { ...loadable, parameters, signAndSend, reset }
+  return useMemo(
+    () => (moduleOrSubmittable === undefined ? undefined : { ...loadable, signAndSend }),
+    [loadable, moduleOrSubmittable, signAndSend]
+  )
 }
 
 export default useExtrinsic

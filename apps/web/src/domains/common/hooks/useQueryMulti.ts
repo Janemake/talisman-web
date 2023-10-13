@@ -1,4 +1,4 @@
-import { ApiPromise } from '@polkadot/api'
+import { type ApiPromise } from '@polkadot/api'
 import type {
   GenericStorageEntryFunction,
   PromiseResult,
@@ -7,28 +7,15 @@ import type {
 } from '@polkadot/api/types'
 import useDeferred from '@util/useDeferred'
 import { useEffect, useRef, useState } from 'react'
-import { Loadable, RecoilLoadable, useRecoilValue } from 'recoil'
-import { Observable } from 'rxjs'
+import { type Loadable, RecoilLoadable, useRecoilValue } from 'recoil'
+import { type Observable } from 'rxjs'
 
-import { apiState } from '../../chains/recoils'
+import { useSubstrateApiState } from '..'
 
-type QueryMap = PickKnownKeys<// @ts-ignore
+type QueryMap = PickKnownKeys<// @ts-expect-error
 { [P in keyof ApiPromise['query']]: `${P}.${keyof PickKnownKeys<ApiPromise['query'][P]>}` }>
 
 type Query = QueryMap[keyof QueryMap]
-
-// type QueryParamsMap = {
-//   [P in Query]: P extends `${infer TModule}.${infer TSection}`
-//     ? Leading<
-//         Parameters<
-//           Diverge<
-//             ApiPromise['query'][TModule][TSection],
-//             StorageEntryPromiseOverloads & QueryableStorageEntry<any, any>
-//           >
-//         >
-//       >
-//     : never
-// }
 
 type SingleQueryResultMap = {
   [P in Query]: P extends `${infer Module}.${infer Section}`
@@ -45,6 +32,9 @@ type QueryResultMap = SingleQueryResultMap
 
 type MultiPossibleQuery = keyof QueryResultMap
 
+/**
+ * @deprecated use `useChainQueryMulti` instead
+ */
 export const useQueryMulti = <
   TQueries extends
     | Array<MultiPossibleQuery | [MultiPossibleQuery, ...unknown[]]>
@@ -54,16 +44,16 @@ export const useQueryMulti = <
   options: { enabled?: boolean; keepPreviousData?: boolean } = { enabled: true, keepPreviousData: false }
 ) => {
   type TResult = {
-    [P in keyof typeof queries]: typeof queries[P] extends [infer Head, ...any[]]
+    [P in keyof typeof queries]: (typeof queries)[P] extends [infer Head, ...any[]]
       ? Head extends keyof QueryResultMap
         ? QueryResultMap[Head]
         : any
-      : typeof queries[P] extends keyof QueryResultMap
-      ? QueryResultMap[typeof queries[P]]
+      : (typeof queries)[P] extends keyof QueryResultMap
+      ? QueryResultMap[(typeof queries)[P]]
       : any
   }
 
-  const api = useRecoilValue(apiState)
+  const api = useRecoilValue(useSubstrateApiState())
 
   const { promise, resolve, reject } = useDeferred<TResult>(
     options.keepPreviousData ? undefined : [JSON.stringify(queries)]
@@ -91,12 +81,14 @@ export const useQueryMulti = <
       const params = queries.map(x => {
         if (typeof x === 'string') {
           const [module, section] = x.split('.')
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           return api.query[module!]?.[section!]
         }
 
         const [query, ...params] = x
         const [module, section] = query.split('.')
 
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         return [api.query[module!]?.[section!], ...params]
       })
 
@@ -119,7 +111,7 @@ export const useQueryMulti = <
         })
 
       return () => {
-        unsubscribePromise.then(unsubscribe => {
+        void unsubscribePromise.then(unsubscribe => {
           if (typeof unsubscribe === 'function') {
             unsubscribe()
           }

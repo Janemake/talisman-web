@@ -1,19 +1,17 @@
-import { trackGoal } from '@libs/fathom'
+/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
+/* eslint-disable @typescript-eslint/restrict-template-expressions */
 import { SupportedRelaychains, parachainDetails } from '@libs/talisman/util/_config'
-import { ApiPromise, SubmittableResult, WsProvider } from '@polkadot/api'
-import { SubmittableExtrinsic } from '@polkadot/api/submittable/types'
+import { ApiPromise, type SubmittableResult, WsProvider } from '@polkadot/api'
+import { type SubmittableExtrinsic } from '@polkadot/api/submittable/types'
+import { web3FromAddress } from '@polkadot/extension-dapp'
 import { isEthereumChecksum } from '@polkadot/util-crypto'
-import type { Balance } from '@talismn/api'
-import Talisman from '@talismn/api'
-import type { BalanceWithTokens } from '@talismn/api-react-hooks'
-import { addTokensToBalances } from '@talismn/api-react-hooks'
-import { getWalletBySource } from '@talismn/connect-wallets'
 import { encodeAnyAddress, planckToTokens, tokensToPlanck } from '@talismn/util'
 import customRpcs from '@util/customRpcs'
 import { Maybe } from '@util/monads'
 import BigNumber from 'bignumber.js'
 import { useCallback, useEffect, useState } from 'react'
-import { MemberType, makeTaggedUnion, none } from 'safety-match'
+import { type MemberType, makeTaggedUnion, none } from 'safety-match'
 import { v4 as uuidv4 } from 'uuid'
 
 import { Acala, Astar, Moonbeam, Zeitgeist } from './crowdloanOverrides'
@@ -59,9 +57,9 @@ export const ContributeEvent = makeTaggedUnion({
   setEmail: (email?: string) => email,
   setVerifierSignature: (verifierSignature?: VerifierSignature) => verifierSignature,
   setMemoAddress: (memoAddress?: string) => memoAddress,
-  _setAccountBalance: (balance: BalanceWithTokens | null) => balance,
+  _setAccountBalance: (balance: string | null) => balance,
   _setTxFee: (txFee?: string | null) => txFee,
-  _setValidationError: (validationError?: { i18nCode: string; vars?: { [key: string]: any } }) => validationError,
+  _setValidationError: (validationError?: { i18nCode: string; vars?: Record<string, any> }) => validationError,
   contribute: none,
   _setRegisteringUser: (props: RegisteringUserProps) => props,
   registerUser: none,
@@ -102,9 +100,9 @@ type ReadyProps = {
   memoAddress?: string
 
   api?: ApiPromise
-  accountBalance?: BalanceWithTokens | null
+  accountBalance?: string | null
   txFee?: string | null
-  validationError?: { i18nCode: string; vars?: { [key: string]: any } }
+  validationError?: { i18nCode: string; vars?: Record<string, any> }
   submissionRequested: boolean
   submissionValidated: boolean
 }
@@ -181,10 +179,6 @@ export function useCrowdloanContribute(): [ContributeState, DispatchContributeEv
 // it receives the current state and an event
 // it then returns the new state
 function contributeEventReducer(state: ContributeState, event: ContributeEvent): ContributeState {
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`Dispatching event ${event.variant} with data ${JSON.stringify(event.data, null, 2)}`)
-  }
-
   const ignoreWithWarning = () => {
     console.warn(`Ignoring ContributeEvent.${event.variant}`)
     return state
@@ -209,11 +203,11 @@ function contributeEventReducer(state: ContributeState, event: ContributeEvent):
     _setApi: (api?: ApiPromise) =>
       state.match({
         Ready: props => {
-          if (props.api) props.api.disconnect()
+          if (props.api) void props.api.disconnect()
           return ContributeState.Ready({ ...props, api })
         },
         RegisteringUser: props => {
-          if (props.api) props.api.disconnect()
+          if (props.api) void props.api.disconnect()
           return ContributeState.RegisteringUser({ ...props, api })
         },
         _: ignoreWithWarning,
@@ -288,12 +282,12 @@ function contributeEventReducer(state: ContributeState, event: ContributeEvent):
         _: ignoreWithWarning,
       }),
 
-    _setAccountBalance: (balance: Balance | null) =>
+    _setAccountBalance: (balance: string | null) =>
       state.match({
         Ready: props =>
           ContributeState.Ready({
             ...props,
-            accountBalance: addTokensToBalances([balance], props.relayTokenDecimals)[0],
+            accountBalance: balance,
           }),
         _: ignoreWithWarning,
       }),
@@ -308,7 +302,7 @@ function contributeEventReducer(state: ContributeState, event: ContributeEvent):
         _: ignoreWithWarning,
       }),
 
-    _setValidationError: (validationError?: { i18nCode: string; vars?: { [key: string]: any } }) =>
+    _setValidationError: (validationError?: { i18nCode: string; vars?: Record<string, any> }) =>
       state.match({
         Ready: props =>
           ContributeState.Ready({
@@ -403,7 +397,7 @@ function useInitializeThunk(state: ContributeState, dispatch: DispatchContribute
   })
 
   useEffect(() => {
-    ;(async () => {
+    void (async () => {
       if (!stateDeps) return
       const { crowdloanId, relayChainId, parachainId } = stateDeps
 
@@ -415,7 +409,7 @@ function useInitializeThunk(state: ContributeState, dispatch: DispatchContribute
         relayChainCustomRpcs?.length! > 0
           ? relayChainCustomRpcs ?? []
           : Maybe.of(relayChaindata?.rpc).mapOrUndefined(x => [x]) ?? []
-      const hasRelayRpcs = relayRpcs?.length! > 0
+      const hasRelayRpcs = relayRpcs?.length > 0
       if (!hasRelayRpcs) return dispatch(ContributeEvent._noRpcsForRelayChain)
 
       const { tokenSymbol: relayNativeToken, tokenDecimals: relayTokenDecimals } = relayChaindata!
@@ -466,8 +460,8 @@ function useApiThunk(state: ContributeState, dispatch: DispatchContributeEvent) 
 
     let shouldDisconnect = false
 
-    ApiPromise.create({ provider: new WsProvider(relayRpcs) }).then(api => {
-      if (shouldDisconnect) return api.disconnect()
+    void ApiPromise.create({ provider: new WsProvider(relayRpcs) }).then(async api => {
+      if (shouldDisconnect) return await api.disconnect()
       dispatch(ContributeEvent._setApi(api))
     })
 
@@ -480,28 +474,26 @@ function useApiThunk(state: ContributeState, dispatch: DispatchContributeEvent) 
 
 // When in the ContributeState.Ready state, this thunk will call setAccountBalance as needed
 function useAccountBalanceThunk(state: ContributeState, dispatch: DispatchContributeEvent) {
-  const stateDeps = state.match({
-    Ready: ({ relayChainId, account }) => ({ relayChainId, account }),
-    _: () => false as false,
+  const { api, account, relayTokenDecimals } = state.match({
+    Ready: ({ api, account, relayTokenDecimals }) => ({ api, account, relayTokenDecimals }),
+    _: () => ({ api: undefined, account: undefined, relayTokenDecimals: undefined }),
   })
 
   useEffect(() => {
-    if (!stateDeps) return
-    const { relayChainId, account } = stateDeps
+    if (api === undefined || account === undefined || relayTokenDecimals === undefined) {
+      return
+    }
 
-    if (!account) return
+    void (async () => {
+      const balances = await api.derive.balances.all(account)
 
-    const chainIds = [relayChainId.toString()]
-    const addresses = account ? [account] : []
-
-    const unsubscribe = Talisman.init({ type: 'TALISMANCONNECT', rpcs: customRpcs }).subscribeBalances(
-      chainIds,
-      addresses,
-      balance => dispatch(ContributeEvent._setAccountBalance(balance))
-    )
-
-    return unsubscribe
-  }, [dispatch, JSON.stringify(stateDeps)]) // eslint-disable-line react-hooks/exhaustive-deps
+      dispatch(
+        ContributeEvent._setAccountBalance(
+          new BigNumber(balances.availableBalance.toString()).shiftedBy(-relayTokenDecimals).toString()
+        )
+      )
+    })()
+  }, [account, api, dispatch, relayTokenDecimals])
 }
 
 function useValidateAccountHasContributionBalanceThunk(state: ContributeState, dispatch: DispatchContributeEvent) {
@@ -519,9 +511,8 @@ function useValidateAccountHasContributionBalanceThunk(state: ContributeState, d
 
     if (!contributionAmount || contributionAmount === '') return clearBalanceError()
     if (Number.isNaN(Number(contributionAmount))) return clearBalanceError()
-    if (!accountBalance || !accountBalance.tokens) return clearBalanceError()
-    if (new BigNumber(contributionAmount).isLessThanOrEqualTo(new BigNumber(accountBalance.tokens)))
-      return clearBalanceError()
+    if (!accountBalance) return clearBalanceError()
+    if (new BigNumber(contributionAmount).isLessThanOrEqualTo(new BigNumber(accountBalance))) return clearBalanceError()
 
     setBalanceError()
   }, [dispatch, JSON.stringify(stateDeps)]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -557,7 +548,7 @@ function useTxFeeThunk(state: ContributeState, dispatch: DispatchContributeEvent
   useEffect(() => {
     let cancelled = false
 
-    ;(async () => {
+    void (async () => {
       if (!stateDeps) return
       const {
         relayChainId,
@@ -573,7 +564,7 @@ function useTxFeeThunk(state: ContributeState, dispatch: DispatchContributeEvent
 
       dispatch(ContributeEvent._setTxFee())
 
-      if (!api || !api.isReady) return
+      if (!api?.isReady) return
       if (!contributionAmount) return dispatch(ContributeEvent._setTxFee(null))
       if (!account) return dispatch(ContributeEvent._setTxFee(null))
       if (Moonbeam.is(relayChainId, parachainId) && !memoAddress) return dispatch(ContributeEvent._setTxFee(null))
@@ -612,7 +603,7 @@ function useTxFeeThunk(state: ContributeState, dispatch: DispatchContributeEvent
       cancelled = true
       dispatch(ContributeEvent._setTxFee(null))
     }
-  }, [dispatch, stateDeps && stateDeps?.api, JSON.stringify(jsonCmpStateDeps)]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dispatch, stateDeps !== false && stateDeps?.api, JSON.stringify(jsonCmpStateDeps)]) // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 function useMoonbeamVerifierSignatureThunk(state: ContributeState, dispatch: DispatchContributeEvent) {
@@ -656,8 +647,6 @@ function useMoonbeamVerifierSignatureThunk(state: ContributeState, dispatch: Dis
     }),
     _: () => false as false,
   })
-  const { api, ...jsonCmpStateDeps } = stateDeps || {}
-
   // don't fetch contributions unless we're on moonbeam crowdloan
   // (if accounts is [] then useCrowdloanContributions will skip the query)
   const contributionsProps =
@@ -702,7 +691,7 @@ function useMoonbeamVerifierSignatureThunk(state: ContributeState, dispatch: Dis
 
     // wait for clientside validations to complete
     if (!submissionValidated) return
-    ;(async () => {
+    void (async () => {
       // check if user is already registered for the moonbeam crowdloan
       const checkRemarkResponse = await fetch(
         `${Moonbeam.api}/check-remark/${encodeAnyAddress(account, relayChainId)}`,
@@ -748,7 +737,7 @@ function useMoonbeamVerifierSignatureThunk(state: ContributeState, dispatch: Dis
           'address': encodeAnyAddress(account, relayChainId),
           'previous-total-contribution': previousTotalContributions,
           'contribution': contributionPlanck,
-          'guid': guid,
+          guid,
         }),
       })
       if (!makeSignatureResponse.ok)
@@ -759,7 +748,7 @@ function useMoonbeamVerifierSignatureThunk(state: ContributeState, dispatch: Dis
 
       dispatch(ContributeEvent.setVerifierSignature({ sr25519: signature as string }))
     })()
-  }, [dispatch, contributions, contributionsHydrated, stateDeps && stateDeps?.api, JSON.stringify(jsonCmpStateDeps)]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dispatch, contributions, contributionsHydrated, stateDeps]) // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 function useMoonbeamRegisterUserThunk(state: ContributeState, dispatch: DispatchContributeEvent) {
@@ -845,7 +834,7 @@ function useMoonbeamRegisterUserThunk(state: ContributeState, dispatch: Dispatch
           submissionValidated: false,
         })
       )
-    ;(async () => {
+    void (async () => {
       const verified = await submitTermsAndConditions(api, encodeAnyAddress(account, relayChainId))
       if (!verified) throw new Error('Failed to verify user registration')
       dispatch(
@@ -869,7 +858,7 @@ function useMoonbeamRegisterUserThunk(state: ContributeState, dispatch: Dispatch
         })
       )
     })()
-  }, [dispatch, stateDeps && stateDeps?.api, JSON.stringify(jsonCmpStateDeps)]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dispatch, stateDeps !== false && stateDeps?.api, JSON.stringify(jsonCmpStateDeps)]) // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 function useValidateContributionThunk(state: ContributeState, dispatch: DispatchContributeEvent) {
@@ -928,7 +917,7 @@ function useValidateContributionThunk(state: ContributeState, dispatch: Dispatch
     // these validations will only run after the user hits submit
     if (!submissionRequested) return
 
-    const setError = (error: { i18nCode: string; vars?: { [key: string]: any } }) =>
+    const setError = (error: { i18nCode: string; vars?: Record<string, any> }) =>
       dispatch(ContributeEvent._setValidationError(error))
 
     if (!contributionAmount || contributionAmount.length < 1 || Number(contributionAmount) === 0) {
@@ -952,8 +941,8 @@ function useValidateContributionThunk(state: ContributeState, dispatch: Dispatch
       return
     }
 
-    if (!accountBalance?.tokens) return
-    if (new BigNumber(accountBalance.tokens).isLessThan(new BigNumber(contributionAmount))) {
+    if (!accountBalance) return
+    if (new BigNumber(accountBalance).isLessThan(new BigNumber(contributionAmount))) {
       setError({ i18nCode: 'Account balance too low' })
       return
     }
@@ -987,7 +976,7 @@ function useValidateContributionThunk(state: ContributeState, dispatch: Dispatch
     const expectedLoss = new BigNumber(contributionAmount).plus(new BigNumber(txFee))
 
     if (
-      new BigNumber(accountBalance.tokens)
+      new BigNumber(accountBalance)
         .minus(new BigNumber(expectedLoss))
         .isLessThanOrEqualTo(new BigNumber(existentialDeposit))
     ) {
@@ -999,7 +988,7 @@ function useValidateContributionThunk(state: ContributeState, dispatch: Dispatch
     }
 
     dispatch(ContributeEvent._validateContribution)
-  }, [dispatch, stateDeps && stateDeps?.api, JSON.stringify(jsonCmpStateDeps)]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dispatch, stateDeps !== false && stateDeps?.api, JSON.stringify(jsonCmpStateDeps)]) // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 function useSignAndSendContributionThunk(state: ContributeState, dispatch: DispatchContributeEvent) {
@@ -1036,7 +1025,7 @@ function useSignAndSendContributionThunk(state: ContributeState, dispatch: Dispa
   useEffect(() => {
     let cancelled = false
 
-    ;(async () => {
+    void (async () => {
       if (!stateDeps) return
       const {
         relayChainId,
@@ -1062,12 +1051,7 @@ function useSignAndSendContributionThunk(state: ContributeState, dispatch: Dispa
       if (!api) return
       const contributionPlanck = tokensToPlanck(contributionAmount, relayTokenDecimals)
 
-      // TODO: Make web3FromAddress work. Or add in Wallet interface.
-      // As this is a single-wallet interface, the addresses retrieved here belongs to the same wallet.
-      // Therefore, it is ok to get the wallet from the one saved in localstorage.
-      const selectedWalletName = localStorage.getItem('@talisman-connect/selected-wallet-name')
-      const wallet = getWalletBySource(selectedWalletName as string)
-      const injector = wallet?.extension
+      const injector = await web3FromAddress(account)
 
       if (cancelled) return
 
@@ -1134,7 +1118,7 @@ function useSignAndSendContributionThunk(state: ContributeState, dispatch: Dispa
             }
 
             // https://polkadot.js.org/docs/api/cookbook/tx#how-do-i-get-the-decoded-enum-for-an-extrinsicfailed-event
-            if (dispatchError && dispatchError.isModule && api) {
+            if (dispatchError?.isModule && api) {
               const decoded = api.registry.findMetaError(dispatchError.asModule)
               const { docs, name, section } = decoded
               error = `${section}.${name}: ${docs.join(' ')}`
@@ -1146,11 +1130,6 @@ function useSignAndSendContributionThunk(state: ContributeState, dispatch: Dispa
 
             if (success && !error) {
               dispatch(ContributeEvent._finalizedContributionSuccess({ explorerUrl }))
-              trackGoal('GTVDUALL', 1) // crowdloan_contribute
-              trackGoal('WQGRJ9OC', parseInt(contributionPlanck, 10)) // crowdloan_contribute_amount
-
-              if (relayChainId === 0) trackGoal('JFOFGXPN', parseInt(contributionPlanck, 10)) // crowdloan_contribute_amount_DOT
-              if (relayChainId === 2) trackGoal('QG3QGBYH', parseInt(contributionPlanck, 10)) // crowdloan_contribute_amount_KSM
             } else {
               dispatch(ContributeEvent._finalizedContributionFailed({ error, explorerUrl }))
             }
@@ -1158,14 +1137,13 @@ function useSignAndSendContributionThunk(state: ContributeState, dispatch: Dispa
         })
       } catch (error: any) {
         dispatch(ContributeEvent._finalizedContributionFailed({ error: error?.message || error.toString() }))
-        return
       }
     })()
 
     return () => {
       cancelled = true
     }
-  }, [dispatch, stateDeps && stateDeps?.api, JSON.stringify(jsonCmpStateDeps)]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dispatch, stateDeps !== false && stateDeps?.api, JSON.stringify(jsonCmpStateDeps)]) // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 //

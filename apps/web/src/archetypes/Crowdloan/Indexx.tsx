@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Crowdloan } from '@archetypes'
 import { Await, Field, Grid, NoResults } from '@components'
 import styled from '@emotion/styled'
 import { useCrowdloanContributions } from '@libs/crowdloans'
-import { trackGoal } from '@libs/fathom'
 import { device } from '@util/breakpoints'
 import { useTranslation } from 'react-i18next'
+import { RootNav } from './RootNav'
 
 const FilterBar = styled(
   ({
@@ -27,14 +28,13 @@ const FilterBar = styled(
   }: any) => {
     const { t } = useTranslation()
     return (
-      <div className={`${className} filterbar`} {...rest}>
+      <div className={`${className as string} filterbar`} {...rest}>
         <Field.Search
           className="searchbar"
           value={search}
           placeholder={t('Search Crowdloans')}
           onChange={(search: any) => {
             setSearch(search)
-            trackGoal('9XUF7WEB', 1) // crowdloan_search
           }}
         />
         <div className="filters">
@@ -42,7 +42,6 @@ const FilterBar = styled(
             value={status}
             onChange={(status: any) => {
               setStatus(status)
-              trackGoal('0AO7IT2G', 1) // crowdloan_filter
             }}
             options={statusOptions}
             small
@@ -52,7 +51,6 @@ const FilterBar = styled(
             value={network}
             onChange={(network: any) => {
               setNetwork(network)
-              trackGoal('0AO7IT2G', 1) // crowdloan_filter
             }}
             options={networkOptions}
             small
@@ -92,17 +90,14 @@ const Index = styled(({ withFilter, className }: { withFilter: boolean; classNam
   const { contributions } = useCrowdloanContributions()
 
   return (
-    <div className={`crowdloan-index ${className}`}>
+    <div className={`crowdloan-index ${className ?? ''}`}>
+      <RootNav />
+
       {/* TODO: Remove for now as no Learn more link yet. */}
       {/* <UnlockTalismanBanner /> */}
       {withFilter && <FilterBar {...filterProps} count={count} />}
       <Await until={!loading}>
-        <NoResults
-          require={count?.filtered > 0}
-          title={t('noResult.title')}
-          subtitle={t('noResult.subtitle')}
-          text={t('noResult.text')}
-        >
+        <NoResults require={count?.filtered > 0} subtitle={t('noCrowdloans.text')} text={t('noCrowdloans.subtext')}>
           <Grid>
             {crowdloans.map(({ id }) => (
               <Crowdloan.Teaser key={id} id={id} contributed={contributions.find(x => x.id === id) !== undefined} />

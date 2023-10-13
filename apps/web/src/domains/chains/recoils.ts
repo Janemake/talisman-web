@@ -1,100 +1,34 @@
-import { storageEffect } from '@domains/common/effects'
-import { ApiPromise, WsProvider } from '@polkadot/api'
-import { BN } from '@polkadot/util'
-import { ToBn } from '@polkadot/util/types'
-import Decimal from '@util/Decimal'
-import { gql, request } from 'graphql-request'
+import { selectedCurrencyState } from '@domains/balances'
+import { substrateApiState, useSubstrateApiEndpoint } from '@domains/common'
+import { type BN } from '@polkadot/util'
+import { type ToBn } from '@polkadot/util/types'
+import { Decimal } from '@talismn/math'
+import { useContext } from 'react'
 import { atom, selector, selectorFamily } from 'recoil'
+import { ChainContext } from '.'
+import { chains, type Chain } from './config'
 
-import { ChainId, chainParams, defaultParams, supportedChainIds } from './consts'
+export const _chainsState = atom({ key: '_Chains', default: chains })
 
-export type Chain = {
-  id: string
-  rpcs: Array<{ url: string; isHealthy: true }>
-  isTestnet: boolean
-  nativeToken: {
-    data: {
-      symbol: string
-      decimals: number
-      coingeckoId: string
-    }
-  }
-  subscanUrl: string | null
-}
+export const enableTestnetsState = atom({ key: 'EnableTestnets', default: false })
 
 export const chainsState = selector({
   key: 'Chains',
-  get: async () => {
-    const response = await request<{ chains: Chain[] }>(
-      'https://app.gc.subsquid.io/beta/chaindata/v3/graphql',
-      gql`
-        query getChains($ids: [String!]!) {
-          chains(where: { id_in: $ids }) {
-            id
-            isTestnet
-            rpcs {
-              url
-              isHealthy
-            }
-            nativeToken {
-              data
-            }
-            subscanUrl
-          }
-        }
-      `,
-      { ids: supportedChainIds }
-    )
-
-    return response.chains.map(x => ({
-      ...x,
-      params: chainParams[x.id as ChainId] ?? defaultParams,
-    }))
-  },
+  get: ({ get }) => (get(enableTestnetsState) ? get(_chainsState) : get(_chainsState).filter(x => !x.isTestnet)),
 })
 
-export const chainIdState = atom<ChainId>({
-  key: 'ChainId',
-  default: 'polkadot',
-  effects: [storageEffect(sessionStorage)],
-})
-
-export const chainRpcState = atom({
-  key: 'ChainRpc',
-  default: selector({
-    key: 'ChainRpc/Default',
-    get: ({ get }) => get(chainState).rpcs.find(rpc => rpc.isHealthy)?.url,
-  }),
-})
-
-export const chainState = selector({
-  key: 'Chain',
-  get: ({ get }) => {
-    const allChains = get(chainsState)
-    const id = get(chainIdState)
-    const chain = allChains.find(x => x.id === id)
-
-    if (chain === undefined) throw new Error(`Can't find chain with id: ${id}`)
-
-    return chain
-  },
-})
-
-export const nativeTokenPriceState = selectorFamily({
-  key: 'NativeTokenPrice',
+export const tokenPriceState = selectorFamily({
+  key: 'TokenPrice',
   get:
-    (fiat: string = 'usd') =>
+    ({ coingeckoId }: { coingeckoId: string }) =>
     async ({ get }) => {
-      const chain = get(chainState)
-
-      if (chain.isTestnet) return 1
-
+      const currency = get(selectedCurrencyState)
       try {
         const result = await fetch(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${chain.nativeToken.data.coingeckoId}&vs_currencies=${fiat}`
-        ).then(x => x.json())
+          `https://api.coingecko.com/api/v3/simple/price?ids=${coingeckoId}&vs_currencies=${currency}`
+        ).then(async x => await x.json())
 
-        return result[chain.nativeToken.data.coingeckoId][fiat] as number
+        return result[coingeckoId][currency] as number
       } catch {
         // Coingecko has rate limit, better to return 0 than to crash the session
         // TODO: find alternative or purchase Coingecko subscription
@@ -103,45 +37,40 @@ export const nativeTokenPriceState = selectorFamily({
     },
 })
 
-export const apiState = selector({
-  key: 'PolkadotApi',
-  get: async ({ get }) => {
-    const wsProvider = new WsProvider(get(chainRpcState))
-    return ApiPromise.create({ provider: wsProvider })
-  },
-  dangerouslyAllowMutability: true,
-})
-
-// TODO: this hasn't been thought through, right now is a dirty hack for concurrent chain access
-// need to rethink how we want to tackle this
-export const chainApiState = selectorFamily({
-  key: 'ChainApi',
+export const nativeTokenPriceState = selectorFamily({
+  key: 'NativeTokenPrice',
   get:
-    (id: ChainId) =>
-    ({ get }) => {
-      const allChains = get(chainsState)
-      const chain = allChains.find(x => x.id === id)
-
-      if (chain === undefined) {
-        throw new Error(`Can't find chain with id: ${id}`)
+    ({ chain }: { chain: Chain }) =>
+    async ({ get }) => {
+      if (chain?.isTestnet) {
+        return 0
       }
 
-      return ApiPromise.create({
-        provider: new WsProvider(chain.rpcs.find(x => x.isHealthy)?.url ?? chain.rpcs[0]?.url),
-      })
+      const coingeckoId = chain.nativeToken.coingeckoId
+
+      if (coingeckoId === undefined) {
+        throw new Error('Chain missing CoinGecko id')
+      }
+
+      return get(tokenPriceState({ coingeckoId }))
     },
-  dangerouslyAllowMutability: true,
 })
 
-export const nativeTokenDecimalState = selector({
+export const useNativeTokenPriceState = () => nativeTokenPriceState({ chain: useContext(ChainContext) })
+
+export const nativeTokenDecimalState = selectorFamily({
   key: 'NativeTokenDecimal',
-  get: ({ get }) => {
-    const chain = get(chainState)
-    return {
-      fromAtomics: (value: string | number | bigint | BN | ToBn | undefined) =>
-        Decimal.fromAtomics(value, chain.nativeToken.data.decimals, chain.nativeToken.data.symbol),
-      fromUserInput: (input: string) =>
-        Decimal.fromUserInput(input, chain.nativeToken.data.decimals, chain.nativeToken.data.symbol),
-    }
-  },
+  get:
+    (apiEndpoint: string) =>
+    ({ get }) => {
+      const api = get(substrateApiState(apiEndpoint))
+      return {
+        fromPlanck: (value: string | number | bigint | BN | ToBn | undefined) =>
+          Decimal.fromPlanck(value, api.registry.chainDecimals[0] ?? 0, api.registry.chainTokens[0] ?? ''),
+        fromUserInput: (input: string) =>
+          Decimal.fromUserInput(input, api.registry.chainDecimals[0] ?? 0, api.registry.chainTokens[0] ?? ''),
+      }
+    },
 })
+
+export const useNativeTokenDecimalState = () => nativeTokenDecimalState(useSubstrateApiEndpoint())

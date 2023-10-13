@@ -1,8 +1,6 @@
-import Button from '@components/atoms/Button'
-import { ExternalLink, Union, User } from '@components/atoms/Icon'
-import Text from '@components/atoms/Text'
-import Tooltip from '@components/atoms/Tooltip'
 import { useTheme } from '@emotion/react'
+import { ExternalLink, TalismanHand, User } from '@talismn/icons'
+import { Button, Text, Tooltip } from '@talismn/ui'
 
 export type PoolSelectorItemProps = {
   selected?: boolean
@@ -21,7 +19,6 @@ const PoolSelectorItem = (props: PoolSelectorItemProps) => {
   const alpha = props.selected || props.highlighted ? 'high' : 'disabled'
   return (
     <article
-      {...props}
       onClick={props.onClick}
       css={[
         {
@@ -50,35 +47,28 @@ const PoolSelectorItem = (props: PoolSelectorItemProps) => {
         }}
       >
         <Tooltip content={props.poolName}>
-          {toolTipProps => (
-            <Text.Body
-              {...toolTipProps}
-              alpha={alpha}
-              css={{
-                flex: 1,
-                fontWeight: 'bold',
-                margin: 0,
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {props.poolName}
-            </Text.Body>
-          )}
+          <Text.Body
+            alpha={alpha}
+            css={{
+              flex: 1,
+              fontWeight: 'bold',
+              margin: 0,
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {props.poolName}
+          </Text.Body>
         </Tooltip>
         {props.poolDetailUrl !== undefined && (
           <Button as="a" variant="noop" href={props.poolDetailUrl} target="_blank">
-            <ExternalLink width="1.4rem" height="1.4rem" />
+            <ExternalLink size="1.4rem" />
           </Button>
         )}
       </header>
       <Tooltip content="Total staked in this pool">
-        {tooltipProps => (
-          <Text.Body {...tooltipProps} alpha={alpha}>
-            {props.stakedAmount}
-          </Text.Body>
-        )}
+        <Text.Body alpha={alpha}>{props.stakedAmount}</Text.Body>
       </Tooltip>
       <Text.Body
         as="div"
@@ -87,36 +77,32 @@ const PoolSelectorItem = (props: PoolSelectorItemProps) => {
       >
         <div css={{ display: 'flex', alignItems: 'center' }}>
           {/* <Tooltip content="Talisman pool rating">
-            {tooltipProps => (
-              <div {...tooltipProps}>
+              <div>
                 {Array(3)
                   .fill(undefined)
                   .map((_, index) => (
-                    <Star width="1.4rem" height="1.4rem" fill={index < props.rating ? 'currentColor' : 'none'} />
+                    <Star size="1.4rem" fill={index < props.rating ? 'currentColor' : 'none'} />
                   ))}
               </div>
-            )}
           </Tooltip> */}
           <Tooltip content="Number of pool members">
-            {tooltipProps => (
-              <div {...tooltipProps} css={{ display: 'flex', alignItems: 'center' }}>
-                <Text.Body
-                  alpha={alpha}
-                  css={{
-                    // marginLeft: '0.8rem',
-                    marginRight: '0.4rem',
-                  }}
-                >
-                  {props.memberCount}
-                </Text.Body>
-                <User width="1.4rem" height="1.4rem" />
-              </div>
-            )}
+            <div css={{ display: 'flex', alignItems: 'center' }}>
+              <Text.Body
+                alpha={alpha}
+                css={{
+                  // marginLeft: '0.8rem',
+                  marginRight: '0.4rem',
+                }}
+              >
+                {props.memberCount}
+              </Text.Body>
+              <User size="1.4rem" />
+            </div>
           </Tooltip>
         </div>
         {props.talismanRecommended && (
           <Tooltip content="Talisman top recommended pool">
-            {tooltipProps => <Union {...tooltipProps} width="1.4rem" height="1.4rem" />}
+            <TalismanHand size="1.4rem" />
           </Tooltip>
         )}
       </Text.Body>

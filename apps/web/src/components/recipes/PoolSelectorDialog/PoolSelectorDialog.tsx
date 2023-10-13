@@ -1,24 +1,22 @@
-import Button from '@components/atoms/Button'
-import { ChevronLeft, ChevronRight } from '@components/atoms/Icon'
-import Text from '@components/atoms/Text'
-import AlertDialog from '@components/molecules/AlertDialog'
+import { ChevronLeft, ChevronRight } from '@talismn/icons'
+import { AlertDialog, Button, Text } from '@talismn/ui'
 import { motion } from 'framer-motion'
-import React, { ReactElement, useState } from 'react'
+import React, { type ReactElement, useState } from 'react'
 
-import PoolSelectorItem, { PoolSelectorItemProps } from '../PoolSelectorItem/PoolSelectorItem'
+import PoolSelectorItem, { type PoolSelectorItemProps } from '../PoolSelectorItem/PoolSelectorItem'
 
 export type PoolSelectorDialogProps = {
   open: boolean
   onRequestDismiss: () => unknown
   onConfirm: () => unknown
-  children: ReactElement<PoolSelectorItemProps> | ReactElement<PoolSelectorItemProps>[]
+  children: ReactElement<PoolSelectorItemProps> | Array<ReactElement<PoolSelectorItemProps>>
 }
 
 const ITEMS_PER_PAGE = 9
 
 const PoolSelectorDialog = Object.assign(
   (props: PoolSelectorDialogProps) => {
-    const items = React.Children.toArray(props.children) as ReactElement<PoolSelectorItemProps>[]
+    const items = React.Children.toArray(props.children) as Array<ReactElement<PoolSelectorItemProps>>
     const selectedItems = items.filter(item => item.props.selected)
     const nonSelectedItems = items.filter(item => !item.props.selected)
     const highlightedItems = items.filter(item => item.props.highlighted)
@@ -38,6 +36,7 @@ const PoolSelectorDialog = Object.assign(
             <div
               css={{
                 'display': 'grid',
+                'gridTemplateColumns': 'minmax(0, 1fr)',
                 'gap': '1.6rem',
                 '@media (min-width: 768px)': {
                   display: 'grid',
@@ -64,6 +63,7 @@ const PoolSelectorDialog = Object.assign(
             <motion.div
               css={{
                 'display': 'grid',
+                'gridTemplateColumns': 'minmax(0, 1fr)',
                 'gap': '1.6rem',
                 '@media (min-width: 768px)': {
                   display: 'grid',
@@ -88,7 +88,7 @@ const PoolSelectorDialog = Object.assign(
                   array.length < nonSelectedItems.length &&
                   index === array.length - 1
                     ? Array.from({ length: ITEMS_PER_PAGE - array.length }, (_, index) => (
-                        <div key={'dummy' + index} css={{ opacity: 0, pointerEvents: 'none' }}>
+                        <div key={'dummy' + String(index)} css={{ opacity: 0, pointerEvents: 'none' }}>
                           {item}
                         </div>
                       ))

@@ -1,3 +1,5 @@
+import { chains } from '@domains/chains'
+
 export const statusOptions = {
   INITIALIZED: 'INITIALIZED',
   PROCESSING: 'PROCESSING',
@@ -13,29 +15,36 @@ export type Relaychain = {
   subscanUrl: string
   tokenDecimals: number
   tokenSymbol: string
+  coingeckoId: string
   blockPeriod: number
 }
 
 // https://wiki.polkadot.network/docs/build-ss58-registry
-export const SupportedRelaychains: { [key: number | string]: Relaychain } = {
+export const SupportedRelaychains: Record<number | string, Relaychain> = {
   0: {
     id: 0,
     name: 'Polkadot',
-    rpc: 'wss://rpc.polkadot.io',
+    rpc:
+      chains.find(chain => chain.genesisHash === '0x91b171bb158e2d3848fa23a9f1c25182fb8e20313b2c1eb49219da7a70ce90c3')
+        ?.rpc ?? '',
     genesisHash: '0x91b171bb158e2d3848fa23a9f1c25182fb8e20313b2c1eb49219da7a70ce90c3',
     subscanUrl: 'https://polkadot.subscan.io',
     tokenDecimals: 10,
     tokenSymbol: 'DOT',
+    coingeckoId: 'polkadot',
     blockPeriod: 6,
   },
   2: {
     id: 2,
     name: 'Kusama',
-    rpc: 'wss://kusama-rpc.polkadot.io',
+    rpc:
+      chains.find(chain => chain.genesisHash === '0xb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe')
+        ?.rpc ?? '',
     genesisHash: '0xb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe',
     subscanUrl: 'https://kusama.subscan.io',
     tokenDecimals: 12,
     tokenSymbol: 'KSM',
+    coingeckoId: 'kusama',
     blockPeriod: 6,
   },
 }
@@ -47,7 +56,7 @@ export type ParachainDetails = {
   token: string
   subtitle: string
   info: string
-  links: { [key: string]: string }
+  links: Record<string, string>
   tags?: string[]
 }
 
@@ -484,6 +493,21 @@ export const parachainDetails: ParachainDetails[] = [
     },
   },
   {
+    id: '0-2051',
+    name: 'Ajuna Network',
+    slug: 'ajuna-network',
+    token: 'AJUN',
+    subtitle:
+      'Ajuna Network is the fastest way for developers and game studios to create high-quality, decentralized games.',
+    info: 'Ajuna Network is a decentralized gaming platform that delivers real value to gamers, without compromising on gameplay. It empowers you to truly own your in-game assets, protect and control their functionality, and have a voice in the future of the games you love.',
+    links: {
+      Website: 'https://ajuna.io/',
+      Twitter: 'https://twitter.com/AjunaNetwork',
+      Medium: 'https://medium.com/@AjunaNetwork',
+      Github: 'https://github.com/ajuna-network/',
+    },
+  },
+  {
     id: '0-2053',
     name: 'OmniBTC',
     slug: 'omnibtc',
@@ -495,6 +519,94 @@ export const parachainDetails: ParachainDetails[] = [
       Twitter: 'https://twitter.com/OmniBTC',
       Medium: 'https://medium.com/@omnibtc',
       Github: 'https://github.com/OmniBTC',
+    },
+  },
+  {
+    id: '0-2090',
+    name: 'Oak Network',
+    slug: 'oak-network',
+    token: 'TEER',
+    subtitle: 'Secure and Trustless Automation Payments and finance infrastructure for the Web 3.0',
+    info: 'The Web 3.0 hub for DeFi and payment automation.',
+    links: {
+      Website: 'https://oak.tech/',
+      Twitter: 'https://twitter.com/oak_network',
+      Medium: 'https://medium.com/oak-blockchain',
+      Github: 'https://github.com/OAK-Foundation/OAK-blockchain',
+    },
+  },
+  {
+    id: '0-2093',
+    name: 'Hashed Network',
+    slug: 'hashed-network',
+    token: 'HASH',
+    subtitle: 'Digitally-native business on Polkadot',
+    info: 'Hashed Network enables the full business lifecycle for digitally-native organizations and web3-curious businesses seeking benefits of decentralized digital economies.',
+    links: {
+      Website: 'https://hashed.network/',
+      Twitter: 'https://twitter.com/HashedNetwork',
+      Medium: 'https://medium.com/hashednetwork',
+      Github: 'https://github.com/hashed-io',
+    },
+  },
+  {
+    id: '0-2094',
+    name: 'Pendulum',
+    slug: 'pendulum',
+    token: 'PEN',
+    subtitle: 'FX Blockchain Infrastructure',
+    info: `Pendulum’s interoperable blockchain brings together high-quality fiat tokens in a single, powerful DeFi network. Building the missing link between fiat and DeFi through a forex-optimized smart contract DeFi network allowing traditional finance services to seamlessly integrate with DeFi applications such as specialized forex AMMs, lending protocols, and yield farming and offering composable fiat solutions with 1000x performance.
+‍
+Building Pendulum on Polkadot’s Substrate framework maximizes multi-chain interoperability and increased security. Pendulum will operate as a key piece of Web3 infrastructure to finally unlock DeFi use cases for fiat currencies.
+
+Our mission is to create an open financial future that overcomes borders and fosters economic inclusion.`,
+    links: {
+      Website: 'https://pendulumchain.org/',
+      Discord: 'https://discord.gg/wJ2fQh776B',
+      Telegram: 'https://t.me/pendulum_community',
+      Twitter: 'https://twitter.com/pendulum_chain',
+      Github: 'https://github.com/pendulum-chain',
+      Medium: 'https://pendulum-chain.medium.com/',
+      Reddit: 'https://www.reddit.com/r/Pendulum_Chain/',
+      LinkedIn: 'https://www.linkedin.com/company/pendulum-chain/',
+    },
+  },
+  {
+    id: '0-2097',
+    name: 'Bittensor',
+    slug: 'bittensor',
+    token: 'TAO',
+    subtitle: 'Incentivising Intelligence',
+    info: `Bittensor is an open-source protocol that powers a decentralized, blockchain-based machine learning network. 
+    
+    Machine learning models train collaboratively and are rewarded in TAO according to the informational value they offer the collective. 
+    
+    TAO also grants external access, allowing users to extract information from the network while tuning its activities to their needs.`,
+    links: {
+      Website: 'https://bittensor.com/',
+      Discord: 'https://discord.com/invite/3rUr6EcvbB',
+      Telegram: 'https://t.me/bittensor',
+      Twitter: 'https://twitter.com/bittensor_',
+      Github: 'https://github.com/opentensor/BitTensor',
+      Medium: 'https://bittensor.medium.com/',
+      Reddit: 'https://www.reddit.com/r/bittensor_',
+      LinkedIn: 'https://www.linkedin.com/company/bittensor',
+    },
+  },
+  {
+    id: '0-3340',
+    name: 'InvArch',
+    slug: 'invArch',
+    token: 'VARCH',
+    subtitle: 'Home of the DAO Economy',
+    info: `InvArch is a highly optimized network for launching decentralized communities, borderless businesses, & unstoppable organizations on Polkadot & beyond!`,
+    links: {
+      Website: 'https://invarch.network/',
+      Discord: 'https://discord.com/invite/InvArch',
+      Twitter: 'https://twitter.com/invarchnetwork',
+      Telegram: 'https://t.me/InvArch',
+      Github: 'https://github.com/InvArch',
+      Medium: 'https://invarch.medium.com/',
     },
   },
   {
@@ -546,6 +658,22 @@ export const parachainDetails: ParachainDetails[] = [
     },
   },
   {
+    id: '2-2258',
+    name: 'Shiden',
+    slug: 'shiden-kusama',
+    token: 'SDN',
+    subtitle: 'Smart Contract Platform Natively Supporting Ethereum Virtual Machine and WebAssembly',
+    info: 'Shiden Network is a multi-chain decentralized application layer on Kusama Network.',
+    links: {
+      Website: 'https://shiden.astar.network/',
+      Twitter: 'https://twitter.com/ShidenNetwork',
+      Telegram: 'https://t.me/PlasmOfficial',
+      Medium: 'https://medium.com/astar-network',
+      Github: 'https://github.com/AstarNetwork/Astar',
+      Discord: 'https://discord.com/invite/Z3nC9U4',
+    },
+  },
+  {
     id: '2-2120',
     name: 'Shiden',
     slug: 'shiden-kusama',
@@ -557,6 +685,22 @@ export const parachainDetails: ParachainDetails[] = [
       Twitter: 'https://twitter.com/ShidenNetwork',
       Telegram: 'https://t.me/PlasmOfficial',
       Discord: 'https://discord.com/invite/Dnfn5eT',
+    },
+  },
+  {
+    id: '2-2007',
+    name: 'Shiden Network',
+    slug: 'shiden-network',
+    token: 'SDN',
+    subtitle: 'Smart Contract Platform Natively Supporting Ethereum Virtual Machine and WebAssembly',
+    info: 'Shiden Network is a multi-chain decentralized application layer on Kusama Network.',
+    links: {
+      Website: 'https://shiden.astar.network/',
+      Twitter: 'https://twitter.com/ShidenNetwork',
+      Telegram: 'https://t.me/PlasmOfficial',
+      Medium: 'https://medium.com/astar-network',
+      Github: 'https://github.com/AstarNetwork/Astar',
+      Discord: 'https://discord.com/invite/Z3nC9U4',
     },
   },
   {
@@ -1149,16 +1293,31 @@ export const parachainDetails: ParachainDetails[] = [
     },
   },
   {
-    id: '0-2093',
-    name: 'Hashed Network',
-    slug: 'hashed-network',
-    token: 'BHASH',
-    subtitle: 'Digitally Native Businesses on Polkadot',
-    info: 'Hashed Network enables the full lifecycle for digitally-native organizations and web3-curious businesses seeking benefits of decentralized digital economies.',
+    id: '2-2241',
+    name: 'Krest',
+    slug: 'krest',
+    token: 'KREST',
+    subtitle: "krest is peaq’s canary network - the world's first and only Economy of Things simulation network.",
+    info: 'krest is your home for socio-economic, technical, community, and governance innovation and experimentation within the peaq ecosystem. Launch dApps and tools for the Economy of Things and assess their impact in a live environment on a public blockchain network, without running the risk of causing real-world harm.',
     links: {
-      Website: 'https://hashed.network/',
-      Twitter: 'https://twitter.com/HashedNetwork',
-      GitHub: 'https://github.com/hashed-io',
+      Website: 'https://krest.peaq.network/?ref=parachains-info',
+      Twitter: 'https://twitter.com/peaqnetwork',
+      Discord: 'https://discord.gg/XhJwuFKAAD',
+      Github: 'https://github.com/peaqnetwork/peaq-network-node',
+    },
+  },
+  {
+    id: '2-2256',
+    name: 'Mangata X',
+    slug: 'mangata',
+    token: '$MGX',
+    subtitle: 'Trade crypto without gas, front-running & MEV.',
+    info: 'Mangata offers traders and liquidity providers the best platform to access unique tokens and earn rewards. Mangata will offer access to the widest array of Polkadot tokens, better prices for traders by mitigating MEV, and the ability to trade without gas.',
+    links: {
+      Website: 'https://www.mangata.finance/',
+      Twitter: 'https://twitter.com/MangataFinance',
+      Discord: 'https://discord.com/invite/X4VTaejebf',
+      Github: 'https://github.com/mangata-finance',
     },
   },
 ]
@@ -1760,8 +1919,89 @@ export const crowdloanDetails: CrowdloanDetails[] = [
     paraId: 2093,
     rewards: {
       tokens: null,
-      custom: [],
+      custom: [
+        {
+          title: 'HASH per DOT',
+          value: '480 HASH',
+        },
+        {
+          title: 'Crowdloan Cap',
+          value: '125,000 DOT',
+        },
+        {
+          title: 'Crowdloan Allocation',
+          value: '60m of 1b HASH (6%)',
+        },
+      ],
       info: null,
+    },
+  },
+  {
+    relayId: 0,
+    paraId: 2097,
+    rewards: {
+      tokens: null,
+      custom: [
+        {
+          title: 'Rewards',
+          value: '0.0 TAO',
+        },
+        {
+          title: 'Token Supply',
+          value: '21,000,000 TAO',
+        },
+      ],
+      info: 'This crowdloan is following a "self-funded" approach, meaning any contributors to the crowdloan will not receive any TAO rewards. Therefore, we do not recommend contributing to this crowdloan - NFA/DYOR.',
+    },
+  },
+  {
+    relayId: 0,
+    paraId: 2051,
+    rewards: {
+      tokens: null,
+      custom: [
+        {
+          title: 'AJUN per DOT',
+          value: '10+',
+        },
+      ],
+      info: null,
+    },
+  },
+  {
+    relayId: 0,
+    paraId: 2090,
+    rewards: {
+      tokens: null,
+      custom: [
+        {
+          title: 'OAK per DOT',
+          value: '75.5+',
+        },
+      ],
+      info: null,
+    },
+  },
+  {
+    relayId: 0,
+    paraId: 3340,
+    rewards: {
+      tokens: null,
+      custom: [
+        {
+          title: 'VARCH per DOT',
+          value: '100 VARCH',
+        },
+        {
+          title: 'Crowdloan Cap',
+          value: '150,000 DOT',
+        },
+        {
+          title: 'Reward Pool',
+          value: '15m of 1b (1.5%)',
+        },
+      ],
+      info: '20% of VARCH rewards will be available to claim immediately. The remaining 80% of VARCH rewards will vest/unlock linearly (every block) over a 96 week period.',
     },
   },
   {
@@ -1811,26 +2051,6 @@ export const crowdloanDetails: CrowdloanDetails[] = [
       ],
       custom: [],
       info: 'If Phala wins the Slot Auction, rewards will be distributed according to the Phala payment schedule. If a slot is not won, you can unbond your KSM immediately after the Auctions end.',
-    },
-  },
-  {
-    relayId: 2,
-    paraId: 2120,
-    contributeUrl: 'https://crowdloan.plasmnet.io/',
-    rewards: {
-      tokens: [
-        {
-          symbol: 'SDN',
-          perKSM: '22.4',
-        },
-      ],
-      custom: [
-        {
-          title: 'Total Rewards Distribution',
-          value: '350,000 SDN',
-        },
-      ],
-      info: null,
     },
   },
   {
@@ -2035,26 +2255,6 @@ export const crowdloanDetails: CrowdloanDetails[] = [
       info: null,
     },
   },
-  // NOTE: Superseded by 2088
-  // {
-  //   relayId: 2,
-  //   paraId: 2021,
-  //   contributeUrl: 'https://centrifuge.io/altair/crowdloan',
-  //   rewards: {
-  //     tokens: [
-  //       {
-  //         symbol: 'AIR',
-  //         perKSM: '400',
-  //       },
-  //     ],
-  //     custom: [
-  //       {
-  //         title: 'First 250 participants',
-  //         value: '10% Bonus',
-  //       },
-  //     ],
-  //   },
-  // },
   {
     relayId: 2,
     paraId: 2023,
@@ -2154,22 +2354,6 @@ export const crowdloanDetails: CrowdloanDetails[] = [
       info: null,
     },
   },
-  // NOTE: Superseded by 2090
-  // {
-  //   relayId: 2,
-  //   paraId: 2082,
-  //   contributeUrl: 'https://loan.bsx.fi/',
-  //   rewards: {
-  //     tokens: [
-  //       {
-  //         symbol: 'BSX',
-  //         perKSM: '75,000',
-  //       },
-  //     ],
-  //     custom: null,
-  //     info: null,
-  //   },
-  // },
   {
     relayId: 2,
     paraId: 2084,
@@ -2264,31 +2448,6 @@ export const crowdloanDetails: CrowdloanDetails[] = [
       info: null,
     },
   },
-  // NOTE: Superseded by 2024
-  // {
-  //   relayId: 2,
-  //   paraId: 2089,
-  //   contributeUrl: 'https://genshiro.equilibrium.io/en/plo',
-  //   rewards: {
-  //     tokens: [
-  //       {
-  //         symbol: 'GENS',
-  //         perKSM: '> 2000',
-  //       },
-  //     ],
-  //     custom: [
-  //       {
-  //         title: '> 50 KSM contribution',
-  //         value: '20% Bonus',
-  //       },
-  //       {
-  //         title: 'Contribute before September 10',
-  //         value: '25% Bonus',
-  //       },
-  //     ],
-  //     info: null,
-  //   },
-  // },
   {
     relayId: 2,
     paraId: 2090,
@@ -2677,28 +2836,68 @@ export const crowdloanDetails: CrowdloanDetails[] = [
       info: null,
     },
   },
-  // {
-  //   relayId: 2,
-  //   paraId: 2127,
-  //   contributeUrl: '',
-  //   rewards: {
-  //     tokens: [
-  //       {
-  //         symbol: '$ICZ',
-  //         perKSM: '> 4,000',
-  //       },
-  //     ],
-  //     custom: [
-  //       {
-  //         title: 'Early Supporter Reward',
-  //         value: '4,000 Extra ICZ per KSM (Decreases linearly with time)',
-  //       },
-  //       {
-  //         title: 'Referral Bonus',
-  //         value: '5%',
-  //       },
-  //     ],
-  //     info: null,
-  //   },
-  // },
+  {
+    relayId: 2,
+    paraId: 2241,
+    contributeUrl:
+      'https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fkusama-rpc.polkadot.io&ref=parachains-info#/parachains/crowdloan',
+    rewards: {
+      tokens: [
+        {
+          symbol: 'KREST',
+          perKSM: '800+',
+        },
+      ],
+      custom: [
+        {
+          title: 'Crowdloan Cap',
+          value: '15,000 KSM',
+        },
+      ],
+      info: null,
+    },
+  },
+  {
+    relayId: 2,
+    paraId: 2256,
+    contributeUrl: 'https://crowdloan.mangata.finance/',
+    rewards: {
+      tokens: [
+        {
+          symbol: 'MGX',
+          perKSM: '> 5,000',
+        },
+      ],
+      custom: [
+        {
+          title: 'Min. contribution',
+          value: '1 KSM',
+        },
+        {
+          title: 'Crowdloan Cap',
+          value: '6,000 KSM',
+        },
+      ],
+      info: null,
+    },
+  },
+  {
+    relayId: 2,
+    paraId: 2258,
+    contributeUrl: '',
+    rewards: {
+      tokens: [],
+      custom: [
+        {
+          title: 'Total Supply',
+          value: '70,000,000 SDN',
+        },
+        {
+          title: 'Circulating Supply',
+          value: '~59,000,000 SDN',
+        },
+      ],
+      info: 'Shiden is already a Kusama Parachain, and are renewing their slot. Crowdloan rewards details are unknown.',
+    },
+  },
 ]
